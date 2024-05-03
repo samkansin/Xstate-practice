@@ -1,95 +1,108 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { FetchMachineContextType, fetchMachine } from "@/machines";
+import { ProductServiceResponseType } from "@/types";
+import { Card, CardBody, CardFooter } from "@nextui-org/card";
+import { Image } from "@nextui-org/image";
+import { Button, Spinner } from "@nextui-org/react";
+import { useMachine, useSelector } from "@xstate/react";
+import { useMemo } from "react";
 
 export default function Home() {
+  const [state, send, actorRef] = useMachine(fetchMachine);
+
+  const selectData = (snapshot: any) =>
+    snapshot.context as FetchMachineContextType<ProductServiceResponseType>;
+  const { data, error, retry } = useSelector(actorRef, selectData);
+
+  const handleFetchButtonClick = () => {
+    send({
+      type: "FETCH",
+      url: "https://dummyjson.com/products",
+      method: "GET",
+      headers: new Headers(),
+    });
+  };
+
+  const handleRetryButtonClick = () => {
+    send({ type: "RETRY" });
+  };
+
+  const isLoading = useMemo(() => {
+    return state.matches("loading");
+  }, [state.value]);
+
+  const isRetryLoading = useMemo(() => {
+    return retry < 3 && state.matches("failure");
+  }, [state.value]);
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div>
+      <center className="mt-5">
+        <p>Welcome to Xstate practice</p>
+        <div className="flex gap-5 justify-center mt-5 mb-5">
+          <Button
+            color="primary"
+            className="w-[150px]"
+            onClick={handleFetchButtonClick}
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+            Fetch
+          </Button>
+          <Button
+            color="warning"
+            className="w-[150px]"
+            onClick={handleRetryButtonClick}
+          >
+            Retry
+          </Button>
         </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+        {error ? <p className="text-red-600">Error: {error}</p> : <></>}
+        {isLoading ? (
+          <Spinner label="Loading..." color="primary" className="mt-10" />
+        ) : (
+          <></>
+        )}
+        {isRetryLoading ? (
+          <Spinner
+            label={`Retry round ${retry}`}
+            color="secondary"
+            className="mt-10"
+          />
+        ) : (
+          <></>
+        )}
+        {data ? (
+          <div className="gap-2 grid grid-cols-2 sm:grid-cols-4">
+            {data.products.map((product) => (
+              <Card
+                key={product.id}
+                className="border-none"
+                shadow="sm"
+                isBlurred
+                isPressable
+                onPress={() => console.log()}
+              >
+                <CardBody>
+                  <Image
+                    shadow="sm"
+                    radius="lg"
+                    width="100%"
+                    alt={product.title}
+                    className="w-full object-cover h-[150px]"
+                    src={product.thumbnail}
+                  />
+                </CardBody>
+                <CardFooter className="text-small justify-between">
+                  <b>{product.title}</b>
+                  <p className="text-default-500">{product.price}</p>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <></>
+        )}
+      </center>
+    </div>
   );
 }
